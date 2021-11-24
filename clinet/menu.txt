@@ -1,0 +1,5 @@
+1 Ramen 3000
+2 FiredChiken 15000
+3 Pizza 20000
+4 KoreanPancake 8000
+5 KimchiZZigae 6000
