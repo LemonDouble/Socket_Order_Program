@@ -14,7 +14,6 @@ void * recv_msg(void * arg);
 void * display(void * arg);
 void error_handling(const char * msg);
 
-char name[NAME_SIZE]="[DEFAULT]";
 char msg[BUF_SIZE];
 void make_msg(char type, char* userID, char* order, char* amount);
 
@@ -157,7 +156,10 @@ void make_msg(char type, char* userID, char* order, char* amount)
     // userID : 유저 식별번호 (1,2,3..)
     // Menu ID : 메뉴 번호 (1,2,3...)
     // Amount : 수량 (1,2,3...)
-    memset(msg, type, 1); strcat(msg, userID);strcat(msg," ");
+
+    // 순서대로 붙여서 Data Format대로 만든다!
+    memset(msg, type, 1);
+    strcat(msg, userID);strcat(msg," ");
     strcat(msg, order);strcat(msg," ");
     strcat(msg, amount);strcat(msg, " ");
 }

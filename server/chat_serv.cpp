@@ -16,6 +16,7 @@
 using namespace std;
 
 #define BUF_SIZE 50
+// 클라이언트 최대 256명까지
 #define MAX_CLNT 256
 
 void * handle_clnt(void * arg);
@@ -25,14 +26,17 @@ void exception_handling(const char * msg);
 
 
 int clnt_cnt = 0;
+
+// 클라이언트 소켓을 관리하는 배열
 int clnt_socks[MAX_CLNT];
 pthread_mutex_t mutx;
 
+// 메뉴 구조체, 메뉴 번호와 수량을 합쳐서 저장
 typedef struct menu {
-	int menuNumber; // menu number;
+	int menuNumber;
 	int amount; //food amount
 
-	// operation overloading
+	// operation overloading, 메뉴를 비교할 땐 menuNumber(ID) 만 비교해도 되므로..
 	bool operator==(const int &inputMenuNumber) {
 		return menuNumber == inputMenuNumber;
 	}
@@ -53,32 +57,53 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
+	// Mutex 초기화 Paramter : (초기화할 mutex, Attribute)
 	pthread_mutex_init(&mutx, NULL);
-	serv_sock = socket(PF_INET, SOCK_STREAM, 0);
 
+	// 서버 소켓 설정
+	serv_sock = socket(PF_INET, SOCK_STREAM, 0);
 	memset(&serv_adr, 0, sizeof(serv_adr));
+	// IPv4 사용
 	serv_adr.sin_family = AF_INET;
+	// IP 자동 할당. Port만 일치한다면 사용 가능한 IP를 모두 사용
 	serv_adr.sin_addr.s_addr = htonl(INADDR_ANY);
+	// Port 설정
 	serv_adr.sin_port = htons(atoi(argv[1]));
 
-	if (bind(serv_sock, (struct sockaddr*) &serv_adr, sizeof(serv_adr)) == -1)
+	// 소켓 만들었으니, bind -> listen 순으로 처리
+
+	// bind : 소켓에 IP 주소, Port 번호 지정해줌. -1 : 실패, 0 : 성공
+	if (bind(serv_sock, (struct sockaddr*) &serv_adr, sizeof(serv_adr)) == -1){
 		error_handling("bind() error");
-	if (listen(serv_sock, 5) == -1)
+	}
+
+	// Listen Paramter : (socket, backlog)
+	// backlog : 서버에 연결 시도하는 Queue. connect established시 backlog queue에서 빠져나감.
+	// 단, 최대 연결가능 클라이언트 수는 아니다. 일반적으론 5 정도로 사용
+	if (listen(serv_sock, 5) == -1){
 		error_handling("listen() error");
+	}
 
 	while (1)
 	{
+		// clnt_adr_sz = client address size
 		clnt_adr_sz = sizeof(clnt_adr);
+		
+		// accept : 연결 요청을 수락 Parameter : (소켓, 연결 수락할 클라이언트 정보 저장할 변수 포인터, addr의 구조체 크기 저장하는 변수의 포인터)
 		clnt_sock = accept(serv_sock, (struct sockaddr*)&clnt_adr, (socklen_t*)&clnt_adr_sz);
 
+		// Race Condition 방지 위해서 mutex lock 사용. 접속 성공했다면 접속중인 Clinet 수 증가시킨다.
 		pthread_mutex_lock(&mutx);
 		clnt_socks[clnt_cnt++] = clnt_sock;
 		pthread_mutex_unlock(&mutx);
 
+		// 이후 해당 클라이언트 handle하는 thread 만든다. 
 		pthread_create(&t_id, NULL, handle_clnt, (void*)&clnt_sock);
 		pthread_detach(t_id);
 		printf("Connected client IP: %s \n", inet_ntoa(clnt_adr.sin_addr));
 	}
+
+	// 메인 함수 종료될 때 서버 소켓 닫는다.
 	close(serv_sock);
 	return 0;
 }
@@ -317,7 +342,7 @@ void * handle_clnt(void * arg)
 		puts("--------------order ---------------");
 
 		for (menuIter = customerMapIter->second->begin(); menuIter != customerMapIter->second->end(); menuIter++) {
-			printf("menu Number : %d ,\t amount : %d\n", menuIter->menuNumber, menuIter->amount);
+			printf("menu Number : %d \t amount : %d\n", menuIter->menuNumber, menuIter->amount);
 		}
 
 		puts("----------------------------------------");
